@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>બાળ વિકાસ ચેકર</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #e65100;
+      --success: #2e7d32;
+      --warning: #f57c00;
+      --danger: #d32f2f;
+      --bg: #fdf6f0;
+      --card: #ffffff;
+      --text: #333333;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 12px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: var(--card);
+      padding: 18px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .current-month {
+      text-align: center;
+      background: #fff8e1;
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: bold;
+      color: #e65100;
+      margin-bottom: 12px;
+      border: 1px solid #ffcc80;
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      font-size: 22px;
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px;
+      width: 100%;
+      font-size: 17px;
+      border-radius: 10px;
+      margin-top: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn-group button {
+      flex: 1;
+    }
+    .result-box {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      font-weight: bold;
+      display: none;
+    }
+    .normal { background: #e8f5e9; color: var(--success); }
+    .risk { background: #fff3e0; color: var(--warning); }
+    .severe { background: #ffebee; color: var(--danger); }
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* Preview Modal */
+    #previewModal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+    }
+    .modal-content {
+      background: white;
+      margin: 40px auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 16px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #eee;
+    }
+    .close-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .record-item {
+      padding: 12px;
+      margin: 10px 0;
+      background: #f9f9f9;
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="current-month">
+      ચાલુ મહિનો: નવેમ્બર 2025
+    </div>
+
+    <h1>બાળ વિકાસ ચેકર (0–5 વર્ષ)</h1>
+
+    <label for="name">બાળકનું નામ:</label>
+    <input type="text" id="name" placeholder="ઉદા. કૃષ્ણ" value="રાજ" />
+
+    <label for="gender">લિંગ:</label>
+    <select id="gender">
+      <option value="male">કુમાર (છોકરો)</option>
+      <option value="female" selected>કન્યા (છોકરી)</option>
+    </select>
+
+    <label for="age">ઉંમર (મહિનામાં, 0–60):</label>
+    <input type="number" id="age" min="0" max="60" placeholder="ઉદા. 24" value="24" />
+
+    <label for="weight">વજન (kg):</label>
+    <input type="number" id="weight" step="0.1" placeholder="ઉદા. 10.5" value="10.5" />
+
+    <label for="height">ઊંચાઈ (cm):</label>
+    <input type="number" id="height" step="0.1" placeholder="ઉદા. 85" value="85" />
+
+    <button class="btn" onclick="analyzeGrowth()">વિકાસ ચેક કરો</button>
+
+    <div id="weightResult" class="result-box"></div>
+    <div id="heightResult" class="result-box"></div>
+
+    <div class="btn-group">
+      <button class="btn" style="background:#4caf50;" onclick="saveRecord()">Save</button>
+      <button class="btn" style="background:#2196f3;" onclick="showPreview()">Report Preview</button>
+    </div>
+
+    <button class="btn" style="background:#9c27b0;margin-top:10px;" onclick="exportReport()">PDF Export</button>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>રિપોર્ટ પ્રિવ્યુ – નવેમ્બર 2025</h2>
+        <button class="close-btn" onclick="closePreview()">×</button>
+      </div>
+      <div id="previewContent"></div>
+    </div>
+  </div>
+
+  <footer>
+    Copyright © Devendra Ramanuj, Mo. 9276505035
+  </footer>
+
+  <script>
+    function getThresholds(gender, age) {
+      if (gender === "male") {
+        if (age <= 12) return 2.5 + (age * 0.15);
+        if (age <= 24) return 6.7 + ((age - 12) * 0.25);
+        return 9.7 + ((age - 24) * 0.15);
+      } else {
+        if (age <= 12) return 2.4 + (age * 0.14);
+        if (age <= 24) return 5.9 + ((age - 12) * 0.22);
+        return 8.3 + ((age - 24) * 0.13);
+      }
+    }
+
+    function getHeightThreshold(gender, age) {
+      if (gender === "male") {
+        if (age <= 24) return 46 + (age * 1.3);
+        return 75.8 + ((age - 24) * 0.5);
+      } else {
+        if (age <= 24) return 45 + (age * 1.2);
+        return 73 + ((age - 24) * 0.48);
+      }
+    }
+
+    let currentRecord = null;
+
+    function analyzeGrowth() {
+      const name = document.getElementById("name").value.trim() || "બાળક";
+      const gender = document.getElementById("gender").value;
+      const age = parseFloat(document.getElementById("age").value);
+      const weight = parseFloat(document.getElementById("weight").value);
+      const height = parseFloat(document.getElementById("height").value);
+
+      const wr = document.getElementById("weightResult");
+      const hr = document.getElementById("heightResult");
+
+      wr.style.display = "none";
+      hr.style.display = "none";
+
+      if (isNaN(age) || isNaN(weight) || isNaN(height) || age < 0 || age > 60 || weight <= 0 || height <= 0) {
+        alert("કૃપા કરીને યોગ્ય મૂલ્યો દાખલ કરો.");
+        return;
+      }
+
+      const wTh = getThresholds(gender, age);
+      const hTh = getHeightThreshold(gender, age);
+
+      const uw = weight < wTh;
+      const st = height < hTh;
+
+      currentRecord = { name, gender, age, weight, height, underweight: uw, stunted: st };
+
+      wr.textContent = uw ?
+        `🔴 ${name} ઓછા વજનવાળા છે (Underweight).` :
+        `🟢 ${name} નું વજન યોગ્ય છે.`;
+      wr.className = "result-box " + (uw ? "severe" : "normal");
+      wr.style.display = "block";
+
+      hr.textContent = st ?
+        `🟠 ${name} ઓછી ઊંચાઈવાળા છે (Stunting).` :
+        `🟢 ${name} ની ઊંચાઈ યોગ્ય છે.`;
+      hr.className = "result-box " + (st ? "risk" : "normal");
+      hr.style.display = "block";
+    }
+
+    function saveRecord() {
+      if (!currentRecord) {
+        alert("પહેલા 'વિકાસ ચેક કરો' ક્લિક કરો.");
+        return;
+      }
+      const recs = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
+      recs.push({ ...currentRecord, date: "નવેમ્બર 2025" });
+      localStorage.setItem("childGrowthRecords", JSON.stringify(recs));
+      alert("રેકોર્ડ સાચવાયો!");
+    }
+
+    function showPreview() {
+      const records = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
+      const allRecords = currentRecord ? [currentRecord, ...records] : records;
+
+      if (allRecords.length === 0) {
+        alert("કોઈ ડેટા નથી.");
+        return;
+      }
+
+      let html = `<div style="font-family:Arial;font-size:16px;">`;
+      allRecords.forEach((r, i) => {
+        const genderText = r.gender === 'male' ? 'કુમાર' : 'કન્યા';
+        const weightStatus = r.underweight ? 'ઓછું' : 'સામાન્ય';
+        const heightStatus = r.stunted ? 'ઓછી' : 'સામાન્ય';
+
+        html += `
+          <div class="record-item">
+            <b>રેકોર્ડ ${i+1}: ${r.name} (${genderText})</b><br>
+            ઉંમર: ${r.age} મહિના<br>
+            વજન: ${r.weight} kg (${weightStatus})<br>
+            ઊંચાઈ: ${r.height} cm (${heightStatus})
+          </div>
+        `;
+      });
+      html += `</div>`;
+
+      document.getElementById("previewContent").innerHTML = html;
+      document.getElementById("previewModal").style.display = "block";
+    }
+
+    function closePreview() {
+      document.getElementById("previewModal").style.display = "none";
+    }
+
+    function exportReport() {
+      const records = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
+      if (records.length === 0 && !currentRecord) {
+        alert("કોઈ ડેટા નથી.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.setTextColor(230, 81, 0);
+      doc.text("બાળ વિકાસ રિપોર્ટ – નવેમ્બર 2025", 14, 20);
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+
+      let y = 30;
+      const all = currentRecord ? [currentRecord, ...records] : records;
+
+      all.forEach((r, i) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold");
+        doc.text(`રેકોર્ડ ${i+1}: ${r.name} (${r.gender === 'male' ? 'કુમાર' : 'કન્યા'})`, 14, y);
+        doc.setFont("helvetica", "normal");
+        y += 8;
+        doc.text(`ઉંમર: ${r.age} મહિના`, 14, y); y += 6;
+        doc.text(`વજન: ${r.weight} kg (${r.underweight ? 'ઓછું' : 'સામાન્ય'})`, 14, y); y += 6;
+        doc.text(`ઊંચાઈ: ${r.height} cm (${r.stunted ? 'ઓછી' : 'સામાન્ય'})`, 14, y); y += 10;
+      });
+
+      doc.save("bal_vikas_report_nov2025.pdf");
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+      const modal = document.getElementById("previewModal");
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    }
+  </script>
+</body>
+</html>
