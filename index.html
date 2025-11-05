@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>બાળ વિકાસ ચેકર</title>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root {
       --primary: #e65100;
@@ -179,10 +178,9 @@
       <button class="btn" style="background:#2196f3;" onclick="showPreview()">Report Preview</button>
     </div>
 
-    <button class="btn" style="background:#9c27b0;margin-top:10px;" onclick="exportReport()">PDF Export</button>
+    <button class="btn" style="background:#9c27b0;margin-top:10px;" onclick="copyReport()">Copy Report</button>
   </div>
 
-  <!-- Preview Modal -->
   <div id="previewModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -229,76 +227,98 @@
       const weight = parseFloat(document.getElementById("weight").value);
       const height = parseFloat(document.getElementById("height").value);
 
-      const wr = document.getElementById("weightResult");
-      const hr = document.getElementById("heightResult");
-
-      wr.style.display = "none";
-      hr.style.display = "none";
+      document.getElementById("weightResult").style.display = "none";
+      document.getElementById("heightResult").style.display = "none";
 
       if (isNaN(age) || isNaN(weight) || isNaN(height) || age < 0 || age > 60 || weight <= 0 || height <= 0) {
-        alert("કૃપા કરીને યોગ્ય મૂલ્યો દાખલ કરો.");
-        return;
+        currentRecord = null;
+        alert("કૃપા કરીને યોગ્ય મૂલ્યો (0-60 મહિના, વજન>0, ઊંચાઈ>0) દાખલ કરો.");
+        return false;
       }
 
       const wTh = getThresholds(gender, age);
       const hTh = getHeightThreshold(gender, age);
-
       const uw = weight < wTh;
       const st = height < hTh;
 
       currentRecord = { name, gender, age, weight, height, underweight: uw, stunted: st };
 
-      wr.textContent = uw ?
-        `🔴 ${name} ઓછા વજનવાળા છે (Underweight).` :
-        `🟢 ${name} નું વજન યોગ્ય છે.`;
+      const wr = document.getElementById("weightResult");
+      const hr = document.getElementById("heightResult");
+
+      wr.textContent = uw ? `🔴 ${name} ઓછા વજનવાળા છે (Underweight).` : `🟢 ${name} નું વજન યોગ્ય છે.`;
       wr.className = "result-box " + (uw ? "severe" : "normal");
       wr.style.display = "block";
 
-      hr.textContent = st ?
-        `🟠 ${name} ઓછી ઊંચાઈવાળા છે (Stunting).` :
-        `🟢 ${name} ની ઊંચાઈ યોગ્ય છે.`;
+      hr.textContent = st ? `🟠 ${name} ઓછી ઊંચાઈવાળા છે (Stunting).` : `🟢 ${name} ની ઊંચાઈ યોગ્ય છે.`;
       hr.className = "result-box " + (st ? "risk" : "normal");
       hr.style.display = "block";
+
+      return true;
     }
 
     function saveRecord() {
-      if (!currentRecord) {
-        alert("પહેલા 'વિકાસ ચેક કરો' ક્લિક કરો.");
+      const success = analyzeGrowth();
+      if (!success || !currentRecord) {
+        alert("ડેટા સેવ કરતા પહેલાં યોગ્ય મૂલ્યો દાખલ કરો.");
         return;
       }
+
       const recs = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
       recs.push({ ...currentRecord, date: "નવેમ્બર 2025" });
       localStorage.setItem("childGrowthRecords", JSON.stringify(recs));
-      alert("રેકોર્ડ સાચવાયો!");
+      alert("✅ રેકોર્ડ સાચવાયો!");
     }
 
     function showPreview() {
-      const records = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
-      const allRecords = currentRecord ? [currentRecord, ...records] : records;
+      const savedRecords = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
+      const allRecords = [];
 
+      if (currentRecord && 
+          typeof currentRecord.name === 'string' && 
+          typeof currentRecord.age === 'number' &&
+          typeof currentRecord.weight === 'number' &&
+          typeof currentRecord.height === 'number') {
+        allRecords.push(currentRecord);
+      }
+      
+      allRecords.push(...savedRecords);
+
+      const previewContent = document.getElementById("previewContent");
       if (allRecords.length === 0) {
-        alert("કોઈ ડેટા નથી.");
-        return;
+        previewContent.innerHTML = 
+          `<div style="padding:20px;text-align:center;color:#666;font-size:16px;">
+            કોઈ રેકોર્ડ નથી.<br>
+            પહેલાં "વિકાસ ચેક કરો" ક્લિક કરો અને "Save" કરો.
+           </div>`;
+      } else {
+        let html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;">`;
+        allRecords.forEach((r, i) => {
+          const name = r.name || "બાળક";
+          const gender = r.gender || "female";
+          const genderText = gender === 'male' ? 'કુમાર' : 'કન્યા';
+          const age = typeof r.age === 'number' ? r.age : 0;
+          const weight = typeof r.weight === 'number' ? r.weight.toFixed(1) : '0';
+          const height = typeof r.height === 'number' ? r.height.toFixed(1) : '0';
+          const underweight = r.underweight === true;
+          const stunted = r.stunted === true;
+          
+          const weightStatus = underweight ? 'ઓછું' : 'સામાન્ય';
+          const heightStatus = stunted ? 'ઓછી' : 'સામાન્ય';
+
+          html += `
+            <div class="record-item">
+              <b>રેકોર્ડ ${i+1}: ${name} (${genderText})</b><br>
+              ઉંમર: ${age} મહિના<br>
+              વજન: ${weight} kg (${weightStatus})<br>
+              ઊંચાઈ: ${height} cm (${heightStatus})
+            </div>
+          `;
+        });
+        html += `</div>`;
+        previewContent.innerHTML = html;
       }
 
-      let html = `<div style="font-family:Arial;font-size:16px;">`;
-      allRecords.forEach((r, i) => {
-        const genderText = r.gender === 'male' ? 'કુમાર' : 'કન્યા';
-        const weightStatus = r.underweight ? 'ઓછું' : 'સામાન્ય';
-        const heightStatus = r.stunted ? 'ઓછી' : 'સામાન્ય';
-
-        html += `
-          <div class="record-item">
-            <b>રેકોર્ડ ${i+1}: ${r.name} (${genderText})</b><br>
-            ઉંમર: ${r.age} મહિના<br>
-            વજન: ${r.weight} kg (${weightStatus})<br>
-            ઊંચાઈ: ${r.height} cm (${heightStatus})
-          </div>
-        `;
-      });
-      html += `</div>`;
-
-      document.getElementById("previewContent").innerHTML = html;
       document.getElementById("previewModal").style.display = "block";
     }
 
@@ -306,39 +326,64 @@
       document.getElementById("previewModal").style.display = "none";
     }
 
-    function exportReport() {
-      const records = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
-      if (records.length === 0 && !currentRecord) {
+    // ✅ SAFE FOR ANDROID: Copy report as text
+    function copyReport() {
+      const savedRecords = JSON.parse(localStorage.getItem("childGrowthRecords") || "[]");
+      const allRecords = [];
+
+      if (currentRecord && 
+          typeof currentRecord.name === 'string' && 
+          typeof currentRecord.age === 'number' &&
+          typeof currentRecord.weight === 'number' &&
+          typeof currentRecord.height === 'number') {
+        allRecords.push(currentRecord);
+      }
+      allRecords.push(...savedRecords);
+
+      if (allRecords.length === 0) {
         alert("કોઈ ડેટા નથી.");
         return;
       }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.setFontSize(18);
-      doc.setTextColor(230, 81, 0);
-      doc.text("બાળ વિકાસ રિપોર્ટ – નવેમ્બર 2025", 14, 20);
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-
-      let y = 30;
-      const all = currentRecord ? [currentRecord, ...records] : records;
-
-      all.forEach((r, i) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.setFont("helvetica", "bold");
-        doc.text(`રેકોર્ડ ${i+1}: ${r.name} (${r.gender === 'male' ? 'કુમાર' : 'કન્યા'})`, 14, y);
-        doc.setFont("helvetica", "normal");
-        y += 8;
-        doc.text(`ઉંમર: ${r.age} મહિના`, 14, y); y += 6;
-        doc.text(`વજન: ${r.weight} kg (${r.underweight ? 'ઓછું' : 'સામાન્ય'})`, 14, y); y += 6;
-        doc.text(`ઊંચાઈ: ${r.height} cm (${r.stunted ? 'ઓછી' : 'સામાન્ય'})`, 14, y); y += 10;
+      let text = "બાળ વિકાસ રિપોર્ટ – નવેમ્બર 2025\n\n";
+      allRecords.forEach((r, i) => {
+        const name = r.name || "બાળક";
+        const genderText = r.gender === 'male' ? 'કુમાર' : 'કન્યા';
+        const weightStatus = r.underweight ? 'ઓછું' : 'સામાન્ય';
+        const heightStatus = r.stunted ? 'ઓછી' : 'સામાન્ય';
+        text += `રેકોર્ડ ${i+1}: ${name} (${genderText})\n`;
+        text += `ઉંમર: ${r.age} મહિના\n`;
+        text += `વજન: ${r.weight} kg (${weightStatus})\n`;
+        text += `ઊંચાઈ: ${r.height} cm (${heightStatus})\n\n`;
       });
 
-      doc.save("bal_vikas_report_nov2025.pdf");
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert("રિપોર્ટ કૉપી થઈ ગઈ! હવે WhatsApp, Notes, અથવા Excel માં પેસ્ટ કરો.");
+        }).catch(() => {
+          fallbackCopyText(text);
+        });
+      } else {
+        fallbackCopyText(text);
+      }
     }
 
-    // Close modal on outside click
+    function fallbackCopyText(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        alert("રિપોર્ટ કૉપી થઈ ગઈ! હવે ક્યાંક પેસ્ટ કરો.");
+      } catch (e) {
+        alert("કૉપી કરવામાં નિષ્ફળ. નીચેનું ટેક્સ્ટ મેન્યુઅલી કૉપી કરો:\n\n" + text);
+      }
+      document.body.removeChild(textarea);
+    }
+
     window.onclick = function(event) {
       const modal = document.getElementById("previewModal");
       if (event.target === modal) {
